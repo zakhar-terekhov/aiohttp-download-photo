@@ -3,5 +3,8 @@ name = "aiohttp-download-photo"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.6"
+dependencies = [
+    "aiofiles==0.4.0",
+    "aiohttp==3.6.3",
+]
