@@ -26,10 +26,8 @@ async def prepare_headers(request, archive_name):
 async def download_archive(request, archive_name, photos_dir):
     response = await prepare_headers(request, archive_name)
 
-    command = ["zip", "-r", "-", "."]
-
     process = await asyncio.create_subprocess_exec(
-        *command,
+        *["zip", "-r", "-", "."],
         cwd=photos_dir,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
