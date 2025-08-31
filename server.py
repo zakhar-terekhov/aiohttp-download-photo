@@ -1,22 +1,25 @@
-from pathlib import Path
-from aiohttp import web
-import aiofiles
 import asyncio
+from pathlib import Path
+
+import aiofiles
+from aiohttp import web
 
 CHUNK_SIZE = 1024 * 800
 
 
 async def handle_index_page(request):
-    async with aiofiles.open('index.html', mode='r') as index_file:
+    async with aiofiles.open("index.html", mode="r") as index_file:
         index_contents = await index_file.read()
-    return web.Response(text=index_contents, content_type='text/html')
+    return web.Response(text=index_contents, content_type="text/html")
 
 
 async def prepare_headers(request, archive_name):
     response = web.StreamResponse()
 
-    response.headers['Content-Type'] = 'application/zip'
-    response.headers['Content-Disposition'] = f'attachment; filename="{archive_name}.zip"'
+    response.headers["Content-Type"] = "application/zip"
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="{archive_name}.zip"'
+    )
 
     await response.prepare(request)
 
@@ -41,7 +44,7 @@ async def download_archive(request, archive_name, photos_dir):
 
 
 async def respond_to_request_download_archive(request):
-    archive_hash = request.match_info.get('archive_hash')
+    archive_hash = request.match_info.get("archive_hash")
     archive_name = "archive.part1" if archive_hash == "7kna" else "archive.part2"
 
     photos_dir = Path.cwd().joinpath(f"test_photos/{archive_hash}")
@@ -53,10 +56,12 @@ async def respond_to_request_download_archive(request):
     return response
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = web.Application()
-    app.add_routes([
-        web.get('/', handle_index_page, name='index'),
-        web.get('/archive/{archive_hash}/', respond_to_request_download_archive),
-    ])
+    app.add_routes(
+        [
+            web.get("/", handle_index_page, name="index"),
+            web.get("/archive/{archive_hash}/", respond_to_request_download_archive),
+        ]
+    )
     web.run_app(app)
