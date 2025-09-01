@@ -47,12 +47,12 @@ async def download_archive(request, archive_name, photos_dir):
             await asyncio.sleep(5)
 
     except asyncio.CancelledError:
-        logger.info("Download was interrupted")
-        process.kill()
-        await process.wait()
+        logger.warning("Download was interrupted")
         raise
 
     finally:
+        if process.returncode != 0:
+            process.kill()
         return response
 
 
