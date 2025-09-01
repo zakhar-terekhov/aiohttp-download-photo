@@ -39,18 +39,25 @@ async def download_archive(request, archive_name, photos_dir):
         stderr=asyncio.subprocess.PIPE,
     )
 
-    while not process.stdout.at_eof():
-        chunk = await process.stdout.read(CHUNK_SIZE)
-        logger.info("Sending archive chunk ...")
-        await response.write(chunk)
-        await asyncio.sleep(3)
+    try:
+        while not process.stdout.at_eof():
+            chunk = await process.stdout.read(CHUNK_SIZE)
+            logger.info("Sending archive chunk ...")
+            await response.write(chunk)
+            await asyncio.sleep(5)
 
-    return response
+    except asyncio.CancelledError:
+        logger.info("Download was interrupted")
+        process.kill()
+        await process.wait()
+        raise
+
+    finally:
+        return response
+
 
 
 async def respond_to_request_download_archive(request):
-    logging.basicConfig(level=logging.INFO)
-
     archive_hash = request.match_info.get("archive_hash")
     archive_name = "archive.part1" if archive_hash == "7kna" else "archive.part2"
 
@@ -64,6 +71,8 @@ async def respond_to_request_download_archive(request):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
     app = web.Application()
     app.add_routes(
         [
