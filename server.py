@@ -43,13 +43,14 @@ async def download_archive(request, archive_name, photos_dir):
         chunk = await process.stdout.read(CHUNK_SIZE)
         logger.info("Sending archive chunk ...")
         await response.write(chunk)
+        await asyncio.sleep(3)
 
     return response
 
 
 async def respond_to_request_download_archive(request):
     logging.basicConfig(level=logging.INFO)
-    
+
     archive_hash = request.match_info.get("archive_hash")
     archive_name = "archive.part1" if archive_hash == "7kna" else "archive.part2"
 
