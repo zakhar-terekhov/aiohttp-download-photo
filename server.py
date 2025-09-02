@@ -4,6 +4,7 @@ from pathlib import Path
 
 import aiofiles
 from aiohttp import web
+from environs import Env
 
 CHUNK_SIZE = 1024 * 800
 
@@ -53,25 +54,31 @@ async def download_archive(request, archive_name, photos_dir):
     finally:
         if process.returncode != 0:
             process.kill()
-        return response
 
+    return response
 
 
 async def respond_to_request_download_archive(request):
     archive_hash = request.match_info.get("archive_hash")
     archive_name = "archive.part1" if archive_hash == "7kna" else "archive.part2"
 
-    photos_dir = Path.cwd().joinpath(f"test_photos/{archive_hash}")
+    photos_dir = Path.cwd().joinpath(f"{env.str('PHOTOS_DIR_PATH')}{archive_hash}")
 
     if not photos_dir.exists():
         raise web.HTTPNotFound(text="Архив не существует или был удален")
 
     response = await download_archive(request, archive_name, photos_dir)
+
     return response
 
 
 if __name__ == "__main__":
+    env = Env()
+    env.read_env()
+
     logging.basicConfig(level=logging.INFO)
+    logger.disabled = env.bool("LOGGING")
+
 
     app = web.Application()
     app.add_routes(
