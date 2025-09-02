@@ -11,18 +11,19 @@ CHUNK_SIZE = 1024 * 800
 logger = logging.getLogger("logger")
 
 
-async def handle_index_page(request):
+async def handle_index_page(request) -> web.Response:
+    """Отображение главной страницы."""
     async with aiofiles.open("index.html", mode="r") as index_file:
         index_contents = await index_file.read()
     return web.Response(text=index_contents, content_type="text/html")
 
 
-async def prepare_headers(request, archive_name):
+async def prepare_headers(request, archive_hash):
     response = web.StreamResponse()
 
     response.headers["Content-Type"] = "application/zip"
     response.headers["Content-Disposition"] = (
-        f'attachment; filename="{archive_name}.zip"'
+        f'attachment; filename="photos_{archive_hash}.zip"'
     )
 
     await response.prepare(request)
@@ -30,8 +31,8 @@ async def prepare_headers(request, archive_name):
     return response
 
 
-async def download_archive(request, archive_name, photos_dir):
-    response = await prepare_headers(request, archive_name)
+async def download_archive(request, archive_hash, photos_dir):
+    response = await prepare_headers(request, archive_hash)
 
     process = await asyncio.create_subprocess_exec(
         *["zip", "-r", "-", "."],
@@ -45,7 +46,7 @@ async def download_archive(request, archive_name, photos_dir):
             chunk = await process.stdout.read(CHUNK_SIZE)
             logger.info("Sending archive chunk ...")
             await response.write(chunk)
-            await asyncio.sleep(5)
+            await asyncio.sleep(2)
 
     except asyncio.CancelledError:
         logger.warning("Download was interrupted")
@@ -54,20 +55,19 @@ async def download_archive(request, archive_name, photos_dir):
     finally:
         if process.returncode != 0:
             process.kill()
-
-    return response
+        return response
 
 
 async def respond_to_request_download_archive(request):
     archive_hash = request.match_info.get("archive_hash")
-    archive_name = "archive.part1" if archive_hash == "7kna" else "archive.part2"
 
-    photos_dir = Path.cwd().joinpath(f"{env.str('PHOTOS_DIR_PATH')}{archive_hash}")
+    photos_dir = Path(env.str("PHOTOS_DIR_PATH")).joinpath(archive_hash)
 
     if not photos_dir.exists():
+        logger.error("Archive does not exist")
         raise web.HTTPNotFound(text="Архив не существует или был удален")
 
-    response = await download_archive(request, archive_name, photos_dir)
+    response = await download_archive(request, archive_hash, photos_dir)
 
     return response
 
@@ -76,9 +76,9 @@ if __name__ == "__main__":
     env = Env()
     env.read_env()
 
-    logging.basicConfig(level=logging.INFO)
-    logger.disabled = env.bool("LOGGING")
-
+    logger.disabled = env.bool("LOGGING_DISABLED")
+    if not logger.disabled:
+        logging.basicConfig(level=logging.INFO)
 
     app = web.Application()
     app.add_routes(

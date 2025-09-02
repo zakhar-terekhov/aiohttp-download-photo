@@ -16,7 +16,7 @@ sdist/
 var/
 wheels/
 *.egg
-.env/
+.env
 .venv/
 env/
 venv/
