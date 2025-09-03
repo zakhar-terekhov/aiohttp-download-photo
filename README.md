@@ -27,7 +27,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 #### Установите python v.3.10.12
 
 ```bash
-uv python install 3.13.3
+uv python install 3.10.12
 ```
 
 ### Установите переменные окружения
