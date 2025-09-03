@@ -6,6 +6,7 @@ import aiofiles
 from aiohttp import web
 from environs import Env
 
+# Размер чанка для чтения из stdout процесса и отправки клиенту
 CHUNK_SIZE = 1024 * 800
 
 logger = logging.getLogger("logger")
@@ -27,12 +28,14 @@ async def download_archive(
     
     Обработка исключений в случае ошибки или прерывания пользователем скачивания.
     """
+    env = request.app["env"]
+
     try:
         while not process.stdout.at_eof():
             chunk = await process.stdout.read(CHUNK_SIZE)
             logger.info("Sending archive chunk ...")
             await response.write(chunk)
-            await asyncio.sleep(0)
+            await asyncio.sleep(env.int("DELAY"))
 
     except asyncio.CancelledError:
         logger.warning("Download was interrupted")
@@ -46,6 +49,7 @@ async def download_archive(
 
 async def respond_to_request_download_archive(request) -> web.StreamResponse:
     """Обработка запроса на скачивание архива."""
+    env = request.app["env"]
     archive_hash = request.match_info.get("archive_hash")
     
     photos_dir = Path(env.str("PHOTOS_DIR_PATH")).joinpath(archive_hash)
@@ -85,6 +89,7 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.INFO)
 
     app = web.Application()
+    app["env"] = env
     app.add_routes(
         [
             web.get("/", handle_index_page, name="index"),
