@@ -18,35 +18,21 @@ async def handle_index_page(request) -> web.Response:
     return web.Response(text=index_contents, content_type="text/html")
 
 
-async def prepare_headers(request, archive_hash):
-    response = web.StreamResponse()
-
-    response.headers["Content-Type"] = "application/zip"
-    response.headers["Content-Disposition"] = (
-        f'attachment; filename="photos_{archive_hash}.zip"'
-    )
-
-    await response.prepare(request)
-
-    return response
-
-
-async def download_archive(request, archive_hash, photos_dir):
-    response = await prepare_headers(request, archive_hash)
-
-    process = await asyncio.create_subprocess_exec(
-        *["zip", "-r", "-", "."],
-        cwd=photos_dir,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-
+async def download_archive(
+        request, 
+        process: asyncio.subprocess.Process, 
+        response: web.StreamResponse
+) -> web.StreamResponse:
+    """Процесс скачивания архива.
+    
+    Обработка исключений в случае ошибки или прерывания пользователем скачивания.
+    """
     try:
         while not process.stdout.at_eof():
             chunk = await process.stdout.read(CHUNK_SIZE)
             logger.info("Sending archive chunk ...")
             await response.write(chunk)
-            await asyncio.sleep(2)
+            await asyncio.sleep(0)
 
     except asyncio.CancelledError:
         logger.warning("Download was interrupted")
@@ -58,18 +44,36 @@ async def download_archive(request, archive_hash, photos_dir):
         return response
 
 
-async def respond_to_request_download_archive(request):
+async def respond_to_request_download_archive(request) -> web.StreamResponse:
+    """Обработка запроса на скачивание архива."""
     archive_hash = request.match_info.get("archive_hash")
-
+    
     photos_dir = Path(env.str("PHOTOS_DIR_PATH")).joinpath(archive_hash)
+
+    response = web.StreamResponse()
+
+    response.headers["Content-Type"] = "application/zip"
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="photos_{archive_hash}.zip"'
+    )
 
     if not photos_dir.exists():
         logger.error("Archive does not exist")
         raise web.HTTPNotFound(text="Архив не существует или был удален")
 
-    response = await download_archive(request, archive_hash, photos_dir)
+    else:
+        await response.prepare(request)
 
-    return response
+        process = await asyncio.create_subprocess_exec(
+            *["zip", "-r", "-", "."],
+            cwd=photos_dir,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        await download_archive(request, process, response)
+        
+        return response
 
 
 if __name__ == "__main__":
