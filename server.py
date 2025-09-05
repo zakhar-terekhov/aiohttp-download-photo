@@ -65,19 +65,16 @@ async def respond_to_request_download_archive(request) -> web.StreamResponse:
         logger.error("Archive does not exist")
         raise web.HTTPNotFound(text="Архив не существует или был удален")
 
-    else:
-        await response.prepare(request)
-
-        process = await asyncio.create_subprocess_exec(
-            *["zip", "-r", "-", "."],
-            cwd=photos_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-
-        await download_archive(request, process, response)
-        
-        return response
+    await response.prepare(request)
+    process = await asyncio.create_subprocess_exec(
+        *["zip", "-r", "-", "."],
+        cwd=photos_dir,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    await download_archive(request, process, response)
+    
+    return response
 
 
 if __name__ == "__main__":
@@ -96,4 +93,5 @@ if __name__ == "__main__":
             web.get("/archive/{archive_hash}/", respond_to_request_download_archive),
         ]
     )
+    
     web.run_app(app)
